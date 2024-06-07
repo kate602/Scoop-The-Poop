@@ -11,24 +11,35 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 GRAY = (128, 128, 128)
 
-WIDTH = 1200
+WIDTH = 1800
 HEIGHT = 900
 SCREEN_SIZE = (WIDTH, HEIGHT)
 
 DOG = pg.image.load("./Images/dog.webp")
 DOG = pg.transform.scale(
-    DOG, (DOG.get_width() // 20, DOG.get_height() // 20))  
+    DOG, (DOG.get_width() // 10, DOG.get_height() // 10))  
 
 PEOPLE = pg.image.load("./Images/people.png")
 PEOPLE = pg.transform.scale(
-    PEOPLE, (PEOPLE.get_width() // 7, PEOPLE.get_height() // 7))  
+    PEOPLE, (PEOPLE.get_width() // 2, PEOPLE.get_height() // 2)) 
+PEPOPLE = pg.transform.flip(PEOPLE, True, False)
 
 POOP = pg.image.load("./Images/poop.png")
 POOP = pg.transform.scale(
     POOP, (POOP.get_width() // 12, POOP.get_height() // 12))
   
-BACKGROUND = pg.image.load("./Images/dirtbg.jpg")
-BACKGROUND = pg.transform.scale(BACKGROUND, (1200, 900))
+BACKGROUND = pg.image.load("./Images/bg.jpg")
+BACKGROUND = pg.transform.scale(BACKGROUND, (1800, 900))
+
+
+class Background(pg.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+
+        self.image = BACKGROUND
+        self.rect = self.image.get_rect()
+        self.rect.x = 0
+        self.rect.y = 0
 
 class Player(pg.sprite.Sprite):
     def __init__(self):
@@ -36,9 +47,12 @@ class Player(pg.sprite.Sprite):
 
         self.image = DOG
         self.rect = self.image.get_rect()
+        self.rect.x = 600
+        self.rect.y = 600
         # Initialize velocity
         self.vel_x = 0
         self.vel_y = 0
+
 
     def update(self):
         # Moves left and right
@@ -61,6 +75,10 @@ class Player(pg.sprite.Sprite):
         self.vel_y = 5
         self.image = DOG
 
+    def jump(self):
+        self.vel_y -= 8
+        self.stop
+        self.vel_y += 8
 
 
     # Stop function
@@ -78,7 +96,9 @@ class Poop(pg.sprite.Sprite):
 
         # spawns in random location
         self.rect.x = random.randrange(0, WIDTH - self.rect.width)
-        self.rect.y = random.randrange(0, HEIGHT - self.rect.height)
+        self.rect.y = 650
+
+ 
 
 class Enemy(pg.sprite.Sprite):
     def __init__(self):
@@ -87,21 +107,13 @@ class Enemy(pg.sprite.Sprite):
         self.image = PEOPLE
         self.rect = self.image.get_rect()
 
-        self.rect.x = random.randrange(0, WIDTH - self.rect.width)
-        self.rect.y = HEIGHT - 200
+        self.rect.x = 10
+        self.rect.y = 520
 
-        self.vel_x = -6
-    
+        self.vel_x = 0
 
     def update(self):
         self.rect.x += self.vel_x
-
-        if self.rect.left < 0:
-            self.rect.left = 0
-            self.vel_x = -self.vel_x
-        if self.rect.right > WIDTH:
-            self.rect.right = WIDTH
-            self.vel_x = -self.vel_x
     
 
 class Wall(pg.sprite.Sprite):
@@ -133,6 +145,9 @@ def start():
     enemy_sprites = pg.sprite.Group()
     wall_sprites = pg.sprite.Group()
 
+    background = Background()
+    all_sprites.add(background)
+
     # create player sprite object
     player = Player()
     all_sprites.add(player)
@@ -143,7 +158,7 @@ def start():
         enemy = Enemy()
         all_sprites.add(enemy)
         enemy_sprites.add(enemy)
-
+       
     # create poop
     for _ in range(10):
         poop = Poop()
@@ -151,22 +166,21 @@ def start():
         all_sprites.add(poop)
         poop_sprites.add(poop)
 
-
     # create walls
     #(width, height, x, y)
-    walls = [[200, 80, 0, 500],
-             [200, 80, 180, 500],
-             [200, 80, 360, 500],
-             [200, 80, 540, 500],
-             [200, 80, 900, 500],
-                 ]
+ #   walls = [[200, 80, 0, 500],
+ #            [200, 80, 180, 500],
+ #            [200, 80, 360, 500],
+ #            [200, 80, 540, 500],
+ #            [200, 80, 900, 500],
+ #                ]
     
-    for wall in walls:
-        block = Wall(wall[0], wall[1])
-        block.rect.x = wall[2]
-        block.rect.y = wall[3]
+ #   for wall in walls:
+ #       block = Wall(wall[0], wall[1])
+ #       block.rect.x = wall[2]
+ #       block.rect.y = wall[3]
 
-        all_sprites.add(block)
+ #       all_sprites.add(block)
 
     # --Main Loop--
     while not done:
@@ -185,6 +199,8 @@ def start():
                     player.go_up()
                 if event.key == pg.K_DOWN:
                     player.go_down()
+                if event.key == pg.K_SPACE:
+                    player.jump()
 
             # Stop player if arrow key is released
             if event.type == pg.KEYUP:
@@ -233,9 +249,9 @@ def start():
               poop.kill()
 
         # stop game if caught by people
-        gameend = pg.sprite.spritecollide(player, enemy_sprites, False)
-        if len(gameend) > 0:
-            player.kill()
+#        gameend = pg.sprite.spritecollide(player, enemy_sprites, False)
+#        if len(gameend) > 0:
+#            player.kill()
 
 
 def main():
