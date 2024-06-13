@@ -15,12 +15,7 @@ SCREEN_SIZE = (WIDTH, HEIGHT)
 
 DOG = pg.image.load("./Images/dog.webp")
 DOG = pg.transform.scale(
-    DOG, (DOG.get_width() // 12, DOG.get_height() // 12)) 
-
-HIT_COOLDOWN = 1000
-
-#player speed
-speed = 7 
+    DOG, (DOG.get_width() // 12, DOG.get_height() // 12))  
 
 PEOPLE = pg.image.load("./Images/people.png")
 PEOPLE = pg.transform.scale(
@@ -53,8 +48,6 @@ class Background(pg.sprite.Sprite):
         self.rect.y = 0
 
 class Player(pg.sprite.Sprite):
-    # speed = 7
-
     def __init__(self):
         super().__init__()
 
@@ -66,10 +59,6 @@ class Player(pg.sprite.Sprite):
         self.vel_x = 0
         self.vel_y = 0
 
-        self.last_time_hit = -1000
-
-        self.speed = 7
-
     # gravity always exists as well as the ability to move around
     def update(self):
         self.grav()
@@ -80,12 +69,12 @@ class Player(pg.sprite.Sprite):
     
     # flips the player and moves it left
     def go_left(self):
-        self.vel_x = -self.speed
+        self.vel_x = -7
         self.image = pg.transform.flip(DOG, True, False)
 
     # moves the player right
     def go_right(self):
-        self.vel_x = self.speed
+        self.vel_x = 7
         self.image = DOG
 
     # moves the player up when jumping
@@ -118,7 +107,7 @@ class Poop(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
 
         # spawns in random location in air
-        self.rect.x = random.randrange(200, 1000)
+        self.rect.x = random.randrange(0, WIDTH - self.rect.width)
         self.rect.y = 0
         self.vel_y = 5
         
@@ -150,7 +139,7 @@ class Enemy(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
 
         self.rect.x = -200
-        self.rect.y = GROUND + 10
+        self.rect.y = GROUND + 20
 
         self.vel_x = 0
 
@@ -161,16 +150,14 @@ def start():
     """Environment Setup and Game Loop"""
 
     pg.init()
-    pg.display.set_caption("Catch the Poop")
+    pg.display.set_caption("Collect the Poop!")
 
     # --Game State Variables--
     screen = pg.display.set_mode(SCREEN_SIZE)
     done = False
     clock = pg.time.Clock()
     score = 0
-    lives = 5
     font = pg.font.SysFont("Futura", 24)
-    font_gameover = pg.font.SysFont("Futura", 50)
     last_poop = 0
     last_enemy = 0
 
@@ -224,33 +211,6 @@ def start():
                 if event.key == pg.K_RIGHT and (player.vel_y != 0 or player.vel_x != 0):
                     player.stop()
 
-            # restart game if space bar is pressed
-            if event.type == pg.KEYDOWN:
-                if lives == 0 or len(poop_sprites) > 10:
-                    if event.key == pg.K_SPACE:
-                        lives = 5
-                        score = 0
-
-                        for poop in poop_sprites:
-                            poop.kill()
-                        player.kill()
-                        basket.kill()
-                        enemy.kill()
-
-                        player = Player()
-                        basket = Basket(player)
-                        player_sprites.add(player)
-                        all_sprites.add(basket)
-                        all_sprites.add(player)
-
-                        enemy = Enemy()
-                        all_sprites.add(enemy)
-                        enemy_sprites.add(enemy)
-
-                        poop = Poop()
-                        all_sprites.add(poop)
-                        poop_sprites.add(poop)
-
         # if poop is dropped on the ground, it stays there
         for sprite in poop_sprites:
             if sprite.rect.y == GROUND + 40:
@@ -299,44 +259,11 @@ def start():
 
         # --- Draw items
         screen.fill(BLACK)
+
         all_sprites.draw(screen)
 
-        # draws "lives" and "score"
-        score_image = font.render(f"Poop collected: {score}", True, WHITE)
+        score_image = font.render(f"Poop points: {score}", True, WHITE)
         screen.blit(score_image, (5, 5))
-        lives_image = font.render(f"Lives: {lives}", True, WHITE)
-        screen.blit(lives_image, (5, 30))
-    
-        # creates game over messages
-        gameover = font_gameover.render("GAME OVER", True, WHITE)
-        restart = font.render("Press space to restart", True, WHITE)
-        toomuchpoop = font.render("The ground has too much poop", True, WHITE)
-        scratched = font.render("You've been scratched by the cat", True, WHITE)
-
-        # decrease lives if scratched by cat
-        scratch = pg.sprite.spritecollide(player, enemy_sprites, False)
-        if len(scratch) > 0:
-            now = pg.time.get_ticks()
-
-            if lives > 0 and now - player.last_time_hit > HIT_COOLDOWN:
-                player.speed = player.speed - 1
-                lives = lives - 1
-                player.last_time_hit = now
-                
-        # stops game if no more lives or if too much poop
-        if lives == 0:      
-            screen.blit(gameover, (410, 50))
-            screen.blit(scratched, (400, 100))
-            screen.blit(restart, (440, 150) )
-            enemy.kill()
-            player.stop()
-        # stops game if too much poop
-        if len(poop_sprites) > 10:
-            screen.blit(gameover, (410, 50))
-            screen.blit(toomuchpoop, (400, 100))
-            screen.blit(restart, (440, 150) )
-            enemy.kill()
-            player.stop()
 
         # Update the screen with anything new
         pg.display.flip()
@@ -344,7 +271,20 @@ def start():
         # --- Tick the Clock
         clock.tick(60)  # 60 fps
 
+        # stop game if caught by enemy
+        gameend = pg.sprite.spritecollide(player, enemy_sprites, False)
+        # if len(gameend) > 0:
+        #     player.kill()
+        #     enemy.kill()
+        #     basket.kill()
         
+        # stop game if too much poop is on the ground
+        if len(poop_sprites) > 2:
+            player.kill()
+            enemy.kill()
+            basket.kill()
+            gameover = font.render("TOO MUCH POOP IS ON THE GROUND", True, WHITE)
+            screen.blit(gameover, (450, 300))
 
 
 def main():
