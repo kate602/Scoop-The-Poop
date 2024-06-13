@@ -2,22 +2,20 @@ import random
 import pygame as pg
 
 # --CONSTANTS--
-# COLOURS
-WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-EMERALD = (21, 219, 147)
-RED = (255, 0, 0)
+WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
+RED = (255, 0, 0)
 BLUE = (0, 0, 255)
-GRAY = (128, 128, 128)
 
-WIDTH = 1800
-HEIGHT = 900
+WIDTH = 1200
+HEIGHT = 600
+GROUND = 410
 SCREEN_SIZE = (WIDTH, HEIGHT)
 
 DOG = pg.image.load("./Images/dog.webp")
 DOG = pg.transform.scale(
-    DOG, (DOG.get_width() // 10, DOG.get_height() // 10))  
+    DOG, (DOG.get_width() // 12, DOG.get_height() // 12))  
 
 PEOPLE = pg.image.load("./Images/people.png")
 PEOPLE = pg.transform.scale(
@@ -29,13 +27,21 @@ POOP = pg.transform.scale(
     POOP, (POOP.get_width() // 12, POOP.get_height() // 12))
   
 BACKGROUND = pg.image.load("./Images/bg.jpg")
-BACKGROUND = pg.transform.scale(BACKGROUND, (1800, 900))
+BACKGROUND = pg.transform.scale(BACKGROUND, (1200, 600))
 
+BASKET = pg.image.load("./Images/basket.png")
+BASKET = pg.transform.scale(
+    BASKET, (BASKET.get_width() // 2, BASKET.get_height() // 2))
+
+ENEMY = pg.image.load("./Images/cat.png")
+ENEMY = pg.transform.scale(
+    ENEMY, (ENEMY.get_width() // 6, ENEMY.get_height() // 6))
 
 class Background(pg.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
+        # creates the background
         self.image = BACKGROUND
         self.rect = self.image.get_rect()
         self.rect.x = 0
@@ -45,85 +51,100 @@ class Player(pg.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
+        # creating the image, starting position, velocity
         self.image = DOG
         self.rect = self.image.get_rect()
         self.rect.x = 600
-        self.rect.y = 600
-        # Initialize velocity
+        self.rect.y = 450
         self.vel_x = 0
         self.vel_y = 0
 
-
+    # gravity always exists as well as the ability to move around
     def update(self):
-        # Moves left and right
+        self.grav()
+
+        # Moves left and right and up and down
         self.rect.x += self.vel_x
         self.rect.y += self.vel_y
-
+    
+    # flips the player and moves it left
     def go_left(self):
-        self.vel_x = -5
+        self.vel_x = -7
         self.image = pg.transform.flip(DOG, True, False)
 
+    # moves the player right
     def go_right(self):
-        self.vel_x = 5
+        self.vel_x = 7
         self.image = DOG
 
-    def go_up(self):
-        self.vel_y = -5
-        self.image = DOG
-
-    def go_down(self):
-        self.vel_y = 5
-        self.image = DOG
-
+    # moves the player up when jumping
     def jump(self):
-        self.vel_y -= 8
-        self.stop
-        self.vel_y += 8
+        self.vel_y = -10
+    
+    # moves the player down due to gravity
+    def grav(self):
+        if self.vel_y == 0:
+            self.vel_y = 1
+        else:
+            self.vel_y += .25
+        
+        # stop player when lands on ground
+        if self.rect.y >= GROUND and self.vel_y >= 0:
+            self.vel_y = 0
+            self.rect.y = GROUND
 
-
-    # Stop function
+    # stops movement
     def stop(self):
         self.vel_x = 0
         self.vel_y = 0
  
-
 class Poop(pg.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
+        # creates the image
         self.image = POOP
         self.rect = self.image.get_rect()
 
-        # spawns in random location
+        # spawns in random location in air
         self.rect.x = random.randrange(0, WIDTH - self.rect.width)
-        self.rect.y = 650
+        self.rect.y = 0
+        self.vel_y = 5
+        
+    def update(self):
+        self.rect.y += self.vel_y
 
- 
+class Basket(pg.sprite.Sprite):
+    def __init__(self, player: Player):
+        super().__init__()
+
+        # creates the image
+        self.image = BASKET
+        self.rect = self.image.get_rect()
+        self.rect.y = 365
+
+        self.player = player
+    
+    # the basket will always follow the location of the player
+    def update(self):
+        self.rect.x = self.player.rect.x
+        self.rect.y = self.player.rect.y - 40
 
 class Enemy(pg.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
-        self.image = PEOPLE
+        # creates the image and starting position and velocity
+        self.image = ENEMY
         self.rect = self.image.get_rect()
 
-        self.rect.x = 10
-        self.rect.y = 520
+        self.rect.x = -200
+        self.rect.y = GROUND + 20
 
         self.vel_x = 0
 
     def update(self):
         self.rect.x += self.vel_x
-    
-
-class Wall(pg.sprite.Sprite):
-    def __init__(self, width, height):
-        super().__init__()
- 
-        self.image = pg.image.load("./Images/bush.webp")
-        self.image = pg.transform.scale(self.image, (width, height))
-        self.rect = self.image.get_rect()
-
 
 def start():
     """Environment Setup and Game Loop"""
@@ -137,50 +158,34 @@ def start():
     clock = pg.time.Clock()
     score = 0
     font = pg.font.SysFont("Futura", 24)
+    last_poop = 0
+    last_enemy = 0
 
-    # sprite groups
+    # --SPRITE GROUPS--
     all_sprites = pg.sprite.Group()
     player_sprites = pg.sprite.Group()
     poop_sprites = pg.sprite.Group()
     enemy_sprites = pg.sprite.Group()
-    wall_sprites = pg.sprite.Group()
 
     background = Background()
     all_sprites.add(background)
 
-    # create player sprite object
+    # CREATING PLAYER SPRITE
     player = Player()
-    all_sprites.add(player)
+    basket = Basket(player)
     player_sprites.add(player)
+    all_sprites.add(basket)
+    all_sprites.add(player)
 
-    # create enemy sprite objects
-    for _ in range(1):
-        enemy = Enemy()
-        all_sprites.add(enemy)
-        enemy_sprites.add(enemy)
-       
-    # create poop
-    for _ in range(10):
-        poop = Poop()
+    # CREATING ENEMY SPRITE
+    enemy = Enemy()
+    all_sprites.add(enemy)
+    enemy_sprites.add(enemy)
 
-        all_sprites.add(poop)
-        poop_sprites.add(poop)
-
-    # create walls
-    #(width, height, x, y)
- #   walls = [[200, 80, 0, 500],
- #            [200, 80, 180, 500],
- #            [200, 80, 360, 500],
- #            [200, 80, 540, 500],
- #            [200, 80, 900, 500],
- #                ]
-    
- #   for wall in walls:
- #       block = Wall(wall[0], wall[1])
- #       block.rect.x = wall[2]
- #       block.rect.y = wall[3]
-
- #       all_sprites.add(block)
+    # CREATING POOP SPRITE
+    poop = Poop()
+    all_sprites.add(poop)
+    poop_sprites.add(poop)
 
     # --Main Loop--
     while not done:
@@ -196,42 +201,68 @@ def start():
                 if event.key == pg.K_LEFT:
                     player.go_left()
                 if event.key == pg.K_UP:
-                    player.go_up()
-                if event.key == pg.K_DOWN:
-                    player.go_down()
-                if event.key == pg.K_SPACE:
-                    player.jump()
+                    if player.rect.y == GROUND:
+                        player.jump()
 
             # Stop player if arrow key is released
             if event.type == pg.KEYUP:
-                if event.key == pg.K_LEFT and player.vel_y != 0 or player.vel_x != 0:
+                if event.key == pg.K_LEFT and (player.vel_y != 0 or player.vel_x != 0):
                     player.stop()
-                if event.key == pg.K_RIGHT and player.vel_y != 0 or player.vel_x != 0:
-                    player.stop()
-                if event.key == pg.K_UP and player.vel_y != 0 or player.vel_x != 0:
-                    player.stop()
-                if event.key == pg.K_DOWN and player.vel_y != 0 or player.vel_x != 0:
+                if event.key == pg.K_RIGHT and (player.vel_y != 0 or player.vel_x != 0):
                     player.stop()
 
-        # keep player on screen
-        if player.rect.right > WIDTH:
-            player.rect.right = WIDTH
-        if player.rect.left < 0:
-            player.rect.left = 0
-        if player.rect.top > HEIGHT-50:
-            player.rect.top = HEIGHT-50
-        if player.rect.bottom < 50:
-            player.rect.bottom = 50
+        # if poop is dropped on the ground, it stays there
+        for sprite in poop_sprites:
+            if sprite.rect.y == GROUND + 40:
+                sprite.vel_y = 0
+
+        # add a new poop if _ millseconds elapses
+        if pg.time.get_ticks() - last_poop > 2000:
+            # set last_poop to current tick
+            last_poop = pg.time.get_ticks()
+
+            # adds poop
+            poop1 = Poop()
+            poop_sprites.add(poop1)
+            all_sprites.add(poop1)
+
+        # after _ amount of time, move the enemy
+        if pg.time.get_ticks() - last_enemy > 2000:
+            # set last_enemy to current tick
+            last_enemy = pg.time.get_ticks()
+
+            # if enemy is on left side
+            if enemy.rect.x < -100:
+                enemy.vel_x = random.choice((10, 15, 20))
+                enemy.image = ENEMY
+                if enemy.rect.x > 1215:
+                    enemy.vel_x = 0
+
+            # if enemy is on right side
+            if enemy.rect.x > 1215:
+                enemy.vel_x = random.choice((-10, -15, -20))
+                enemy.image = pg.transform.flip(ENEMY, True, False)
+                if enemy.rect.x < -15:
+                    enemy.vel_x = 0
+            
 
         # --- Update the world state
         all_sprites.update()
+
+        # increase score once dog collects poop
+        poop_collected = pg.sprite.spritecollide(player, poop_sprites, False)
+
+        for poop in poop_collected:
+            if poop.vel_y != 0:
+                score += 1
+                poop.kill()
 
         # --- Draw items
         screen.fill(BLACK)
 
         all_sprites.draw(screen)
 
-        score_image = font.render(f"Score: {score}", True, WHITE)
+        score_image = font.render(f"Poop points: {score}", True, WHITE)
         screen.blit(score_image, (5, 5))
 
         # Update the screen with anything new
@@ -240,18 +271,20 @@ def start():
         # --- Tick the Clock
         clock.tick(60)  # 60 fps
 
-
-        # increase score once dog collects poop
-        poop_collected = pg.sprite.spritecollide(player, poop_sprites, True)
-
-        for poop in poop_collected:
-              score += 1
-              poop.kill()
-
-        # stop game if caught by people
-#        gameend = pg.sprite.spritecollide(player, enemy_sprites, False)
-#        if len(gameend) > 0:
-#            player.kill()
+        # stop game if caught by enemy
+        gameend = pg.sprite.spritecollide(player, enemy_sprites, False)
+        # if len(gameend) > 0:
+        #     player.kill()
+        #     enemy.kill()
+        #     basket.kill()
+        
+        # stop game if too much poop is on the ground
+        if len(poop_sprites) > 2:
+            player.kill()
+            enemy.kill()
+            basket.kill()
+            gameover = font.render("TOO MUCH POOP IS ON THE GROUND", True, WHITE)
+            screen.blit(gameover, (450, 300))
 
 
 def main():
